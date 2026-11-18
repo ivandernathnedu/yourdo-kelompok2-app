@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "375939801127",
+    "project_id": "yourdo-app",
+    "storage_bucket": "yourdo-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:375939801127:android:47ee606f3b15e2679a2e02",
+        "android_client_info": {
+          "package_name": "com.yourdo.yourdo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAWvCnfCV59LrtY1bt34QnD_-l7up4g3Pw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
