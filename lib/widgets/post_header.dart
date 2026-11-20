@@ -135,7 +135,7 @@ class _TwitterMoreButton extends StatelessWidget {
                   ),
                 ),
                 subtitle: const Text(
-                  'Hapus postingan ini dari timeline dan Firebase',
+                  'Hapus postingan ini dari timeline',
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 12,

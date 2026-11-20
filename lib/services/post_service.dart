@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,16 +6,22 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 
 import '../models/profile_post.dart';
+import 'auth_service.dart';
 
 class PostService {
   PostService({
     FirebaseFirestore? firestore,
     FirebaseStorage? storage,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _storage = storage ?? FirebaseStorage.instance;
+  })  : _firestoreOverride = firestore,
+        _storageOverride = storage;
 
-  final FirebaseFirestore _firestore;
-  final FirebaseStorage _storage;
+  final FirebaseFirestore? _firestoreOverride;
+  final FirebaseStorage? _storageOverride;
+
+  FirebaseFirestore get _firestore =>
+      _firestoreOverride ?? FirebaseFirestore.instance;
+  FirebaseStorage get _storage =>
+      _storageOverride ?? FirebaseStorage.instance;
 
   CollectionReference<Map<String, dynamic>> get _postsRef =>
       _firestore.collection('posts');
@@ -51,22 +58,39 @@ class PostService {
     List<File> imageFiles = const [],
   }) async {
     // Upload gambar ke Firebase Storage dan kumpulkan URL-nya
+    // Fallback ke Base64 Data URI jika bucket Storage belum aktif (mis. paket Spark)
     final List<String> imageUrls = [];
+    int totalBase64Bytes = 0;
+    const int maxBase64Bytes = 800000;
+
     for (int i = 0; i < imageFiles.length; i++) {
       final file = imageFiles[i];
       final fileName =
           'posts/${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
       final ref = _storage.ref().child(fileName);
-      await ref.putFile(file);
-      final url = await ref.getDownloadURL();
-      imageUrls.add(url);
+      try {
+        final snapshot = await ref.putFile(file);
+        final url = await snapshot.ref.getDownloadURL();
+        imageUrls.add(url);
+      } catch (_) {
+        final bytes = await file.readAsBytes();
+        final dataUri = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        if (totalBase64Bytes + dataUri.length <= maxBase64Bytes) {
+          imageUrls.add(dataUri);
+          totalBase64Bytes += dataUri.length;
+        } else {
+          imageUrls.add(file.path);
+        }
+      }
     }
 
     // Simpan data post ke Cloud Firestore
+    final currentProfile = AuthService.profileNotifier.value;
     final docRef = await _postsRef.add({
       'userId': 'current_user',
-      'displayName': 'Ivander',
-      'username': '@ivander',
+      'displayName': currentProfile.displayName,
+      'username': currentProfile.username,
+      'photoUrl': currentProfile.photoUrl,
       'categoryLabel': categoryLabel,
       'categoryColor': categoryColor.toARGB32(),
       'categoryIconCodePoint': categoryIcon.codePoint,
@@ -85,42 +109,60 @@ class PostService {
   // 2. READ: Stream daftar post realtime
   // ==========================================
   Stream<List<ProfilePost>> streamPosts() {
-    return _postsRef
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        final label = data['categoryLabel'] as String? ?? 'Explorer';
-        return ProfilePost(
-          id: doc.id,
-          userId: data['userId'] as String? ?? '',
-          displayName: data['displayName'] as String? ?? 'User',
-          username: data['username'] as String? ?? '@user',
-          categoryLabel: label,
-          categoryColor: Color(data['categoryColor'] as int? ?? 0xFF1F5EFF),
-          categoryIcon: _getCategoryIcon(label),
-          activityTitle: data['activityTitle'] as String? ?? '',
-          date: _formatDate(data['createdAt'] as Timestamp?),
-          caption: data['caption'] as String? ?? '',
-          mediaUrls: List<String>.from(data['mediaUrls'] ?? []),
-          stats: [
-            PostStat(
-              value: data['likes'] as int? ?? 0,
-              icon: Icons.favorite_border_rounded,
-            ),
-            PostStat(
-              value: data['comments'] as int? ?? 0,
-              icon: Icons.chat_bubble_outline_rounded,
-            ),
-            PostStat(
-              value: data['shares'] as int? ?? 0,
-              icon: Icons.share_outlined,
-            ),
-          ],
-        );
-      }).toList();
-    });
+    try {
+      return _postsRef
+          .orderBy('createdAt', descending: true)
+          .snapshots()
+          .map((snapshot) {
+        return snapshot.docs.map((doc) {
+          final data = doc.data();
+          final label = data['categoryLabel'] as String? ?? 'Explorer';
+          final rawUserId = data['userId'] as String? ?? '';
+          final isCurrentUser =
+              rawUserId == 'current_user' || rawUserId == 'me';
+          final currentProfile = AuthService.profileNotifier.value;
+
+          return ProfilePost(
+            id: doc.id,
+            userId: rawUserId,
+            displayName:
+                isCurrentUser && AuthService.customDisplayName != null
+                    ? currentProfile.displayName
+                    : (data['displayName'] as String? ??
+                        currentProfile.displayName),
+            username: isCurrentUser
+                ? currentProfile.username
+                : (data['username'] as String? ?? '@user'),
+            photoUrl: isCurrentUser
+                ? (currentProfile.photoUrl ?? data['photoUrl'] as String?)
+                : (data['photoUrl'] as String?),
+            categoryLabel: label,
+            categoryColor: Color(data['categoryColor'] as int? ?? 0xFF1F5EFF),
+            categoryIcon: _getCategoryIcon(label),
+            activityTitle: data['activityTitle'] as String? ?? '',
+            date: _formatDate(data['createdAt'] as Timestamp?),
+            caption: data['caption'] as String? ?? '',
+            mediaUrls: List<String>.from(data['mediaUrls'] ?? []),
+            stats: [
+              PostStat(
+                value: data['likes'] as int? ?? 0,
+                icon: Icons.favorite_border_rounded,
+              ),
+              PostStat(
+                value: data['comments'] as int? ?? 0,
+                icon: Icons.chat_bubble_outline_rounded,
+              ),
+              PostStat(
+                value: data['shares'] as int? ?? 0,
+                icon: Icons.share_outlined,
+              ),
+            ],
+          );
+        }).toList();
+      });
+    } catch (_) {
+      return Stream.value(const []);
+    }
   }
 
   // ==========================================
@@ -138,6 +180,28 @@ class PostService {
     await _postsRef.doc(id).update(data);
   }
 
+  Future<void> updateCurrentUserPostsProfile({
+    required String displayName,
+    String? photoUrl,
+  }) async {
+    try {
+      final snapshot =
+          await _postsRef.where('userId', isEqualTo: 'current_user').get();
+      for (final doc in snapshot.docs) {
+        final Map<String, dynamic> updates = {
+          'displayName': displayName,
+          'username': AuthService.profileNotifier.value.username,
+        };
+        if (photoUrl != null) {
+          updates['photoUrl'] = photoUrl;
+        }
+        await doc.reference.update(updates);
+      }
+    } catch (_) {
+      // Abaikan jika Firebase belum terinisialisasi atau gagal memperbarui post
+    }
+  }
+
   // ==========================================
   // 4. DELETE: Hapus post beserta gambarnya
   // ==========================================
@@ -147,10 +211,14 @@ class PostService {
       final data = doc.data();
       final mediaUrls = List<String>.from(data?['mediaUrls'] ?? []);
       for (final url in mediaUrls) {
-        try {
-          await _storage.refFromURL(url).delete();
-        } catch (_) {
-          // Abaikan jika file sudah tidak ada
+        if (url.startsWith('http://') ||
+            url.startsWith('https://') ||
+            url.startsWith('gs://')) {
+          try {
+            await _storage.refFromURL(url).delete();
+          } catch (_) {
+            // Abaikan jika file sudah tidak ada
+          }
         }
       }
     }

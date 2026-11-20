@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
@@ -63,13 +66,46 @@ class _MediaTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppDimens.questCardRadius),
         child: ColoredBox(
           color: AppColors.questButton,
-          child: Image.asset(
-            source,
-            fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => const SizedBox.expand(),
-          ),
+          child: _buildImage(),
         ),
       ),
+    );
+  }
+
+  Widget _buildImage() {
+    if (source.startsWith('data:image')) {
+      try {
+        final bytes = base64Decode(source.split(',').last);
+        return Image.memory(
+          bytes,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => const SizedBox.expand(),
+        );
+      } catch (_) {
+        return const SizedBox.expand();
+      }
+    }
+
+    if (source.startsWith('http://') || source.startsWith('https://')) {
+      return Image.network(
+        source,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => const SizedBox.expand(),
+      );
+    }
+
+    if (!source.startsWith('Assets/') && File(source).existsSync()) {
+      return Image.file(
+        File(source),
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => const SizedBox.expand(),
+      );
+    }
+
+    return Image.asset(
+      source,
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) => const SizedBox.expand(),
     );
   }
 }

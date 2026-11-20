@@ -4,6 +4,7 @@ import 'package:yourdo/main.dart';
 import 'package:yourdo/models/quest.dart';
 import 'package:yourdo/models/quest_category.dart';
 import 'package:yourdo/models/quest_glyph.dart';
+import 'package:yourdo/services/auth_service.dart';
 import 'package:yourdo/theme/app_theme.dart';
 import 'package:yourdo/widgets/profile_tab_bar.dart';
 import 'package:yourdo/widgets/quest_group_block.dart';
@@ -232,5 +233,114 @@ void main() {
     expect(find.text('Sign up'), findsWidgets);
     expect(find.text('SIGN UP'), findsOneWidget);
     expect(find.text('Already have an account? '), findsOneWidget);
+  });
+
+  testWidgets('Sign up persists local user for logout and re-login', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const YourDoApp());
+
+    await tester.tap(find.text('Sign up'));
+    await tester.pumpAndSettle();
+
+    final username = 'user_${DateTime.now().millisecondsSinceEpoch}';
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Email/username'),
+      username,
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Password'),
+      'rahasia123',
+    );
+    await tester.tap(find.text('SIGN UP'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1400));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Browse categories'), findsOneWidget);
+
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Logout'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Login'), findsOneWidget);
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Email/username'),
+      username,
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Password'),
+      'rahasia123',
+    );
+    await tester.tap(find.text('LOGIN'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1400));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Browse categories'), findsOneWidget);
+  });
+
+  testWidgets('Editing profile updates display name across profile and posts', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const YourDoApp(startAuthenticated: true));
+
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.edit_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Edit Profile'), findsOneWidget);
+
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(Dialog),
+        matching: find.byType(TextField),
+      ),
+      'Ivander Putra',
+    );
+    await tester.tap(find.text('Simpan'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ivander Putra'), findsWidgets);
+    expect(find.text('Profil berhasil diperbarui'), findsOneWidget);
+  });
+
+  testWidgets('Profile username is automatically formatted from email', (
+    tester,
+  ) async {
+    expect(
+      AuthService.formatUsernameFromEmail('rawang.hs12@gmail.com'),
+      '@rawang.hs',
+    );
+
+    await tester.pumpWidget(const YourDoApp());
+
+    await tester.tap(find.text('Sign up'));
+    await tester.pumpAndSettle();
+
+    final email = 'rawang.hs${DateTime.now().millisecondsSinceEpoch}@gmail.com';
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Email/username'),
+      email,
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Password'),
+      'rahasia123',
+    );
+    await tester.tap(find.text('SIGN UP'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1400));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('@rawang.hs'), findsOneWidget);
+    expect(find.textContaining('@rawang.hs'), findsWidgets);
   });
 }

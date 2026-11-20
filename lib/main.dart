@@ -13,6 +13,7 @@ import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AuthService.init();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -49,7 +50,11 @@ class YourDoApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark(),
       home: startAuthenticated
-          ? MainShell(repository: repository, randomizer: randomizer)
+          ? MainShell(
+              repository: repository,
+              randomizer: randomizer,
+              authService: authService,
+            )
           : LoginPage(
               repository: repository,
               randomizer: randomizer,

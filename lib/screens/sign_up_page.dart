@@ -105,6 +105,7 @@ class _SignUpPageState extends State<SignUpPage> {
         builder: (_) => MainShell(
           repository: widget.repository,
           randomizer: widget.randomizer,
+          authService: widget.authService,
         ),
       ),
       (_) => false,

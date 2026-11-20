@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
@@ -14,12 +17,6 @@ class ProfileAvatar extends StatelessWidget {
 
   bool get _hasPhoto => photoUrl != null && photoUrl!.isNotEmpty;
 
-  bool get _isNetwork {
-    final source = photoUrl;
-    if (source == null) return false;
-    return source.startsWith('http://') || source.startsWith('https://');
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -31,19 +28,44 @@ class ProfileAvatar extends StatelessWidget {
         border: Border.all(color: AppColors.divider, width: 2),
       ),
       clipBehavior: Clip.antiAlias,
-      child: _hasPhoto
-          ? (_isNetwork
-                ? Image.network(
-                    photoUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => _Placeholder(size: size),
-                  )
-                : Image.asset(
-                    photoUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => _Placeholder(size: size),
-                  ))
-          : _Placeholder(size: size),
+      child: _hasPhoto ? _buildImage(photoUrl!) : _Placeholder(size: size),
+    );
+  }
+
+  Widget _buildImage(String source) {
+    if (source.startsWith('data:image')) {
+      try {
+        final bytes = base64Decode(source.split(',').last);
+        return Image.memory(
+          bytes,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _Placeholder(size: size),
+        );
+      } catch (_) {
+        return _Placeholder(size: size);
+      }
+    }
+
+    if (source.startsWith('http://') || source.startsWith('https://')) {
+      return Image.network(
+        source,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => _Placeholder(size: size),
+      );
+    }
+
+    if (!source.startsWith('Assets/') && File(source).existsSync()) {
+      return Image.file(
+        File(source),
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => _Placeholder(size: size),
+      );
+    }
+
+    return Image.asset(
+      source,
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) => _Placeholder(size: size),
     );
   }
 }

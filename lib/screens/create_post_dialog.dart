@@ -7,10 +7,13 @@ import '../data/mock_quest_data.dart';
 import '../data/quest_repository.dart';
 import '../models/quest.dart';
 import '../models/quest_category.dart';
+import '../models/user_profile.dart';
+import '../services/auth_service.dart';
 import '../services/post_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/glyph_icon.dart';
+import '../widgets/profile_avatar.dart';
 import 'all_categories_page.dart';
 
 class CreatePostDialog extends StatefulWidget {
@@ -120,8 +123,9 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
 
   Future<void> _pickImage() async {
     final picked = await _imagePicker.pickMultiImage(
-      maxWidth: 1080,
-      imageQuality: 80,
+      maxWidth: 800,
+      maxHeight: 800,
+      imageQuality: 70,
     );
     if (picked.isNotEmpty) {
       setState(() {
@@ -133,8 +137,9 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
   Future<void> _pickCamera() async {
     final picked = await _imagePicker.pickImage(
       source: ImageSource.camera,
-      maxWidth: 1080,
-      imageQuality: 80,
+      maxWidth: 800,
+      maxHeight: 800,
+      imageQuality: 70,
     );
     if (picked != null) {
       setState(() {
@@ -178,7 +183,7 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
       if (!mounted) return;
       Navigator.of(context).pop(true);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Post berhasil diupload ke Firebase! 🎉')),
+        const SnackBar(content: Text('Postingan berhasil')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -235,19 +240,15 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Avatar Bulat Abu-abu (Sesuai Gambar 4)
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF243244),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.person_rounded,
-                            color: AppColors.textSecondary,
-                            size: 26,
-                          ),
+                        // Avatar Pengguna Aktif
+                        ValueListenableBuilder<UserProfile>(
+                          valueListenable: AuthService.profileNotifier,
+                          builder: (context, profile, _) {
+                            return ProfileAvatar(
+                              size: 48,
+                              photoUrl: profile.photoUrl,
+                            );
+                          },
                         ),
                         const SizedBox(width: 14),
                         // Label Category & Badge Achievement

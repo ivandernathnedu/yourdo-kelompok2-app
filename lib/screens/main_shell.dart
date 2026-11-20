@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/quest_repository.dart';
+import '../services/auth_service.dart';
 import '../services/quest_randomizer.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_bottom_nav.dart';
@@ -14,10 +15,12 @@ class MainShell extends StatefulWidget {
     super.key,
     required this.repository,
     required this.randomizer,
+    this.authService,
   });
 
   final QuestRepository repository;
   final QuestRandomizer randomizer;
+  final AuthService? authService;
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -39,7 +42,11 @@ class _MainShellState extends State<MainShell> {
             repository: widget.repository,
             randomizer: widget.randomizer,
           ),
-          const ProfilePage(),
+          ProfilePage(
+            repository: widget.repository,
+            randomizer: widget.randomizer,
+            authService: widget.authService,
+          ),
         ],
       ),
       bottomNavigationBar: AppBottomNav(
