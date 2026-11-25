@@ -6,34 +6,54 @@ import 'package:yourdo/models/quest_category.dart';
 import 'package:yourdo/models/quest_glyph.dart';
 import 'package:yourdo/services/auth_service.dart';
 import 'package:yourdo/theme/app_theme.dart';
+import 'package:yourdo/widgets/post_skeleton.dart';
 import 'package:yourdo/widgets/profile_tab_bar.dart';
 import 'package:yourdo/widgets/quest_group_block.dart';
 
 void main() {
-  testWidgets('Home feed shows local post images', (tester) async {
+  testWidgets('Home feed shows dummy posts and loads more on scroll', (
+    tester,
+  ) async {
     await tester.pumpWidget(const YourDoApp(startAuthenticated: true));
 
     await tester.tap(find.text('Home'));
     await tester.pumpAndSettle();
 
     expect(find.text('Rizky Pratama'), findsWidgets);
-    expect(find.text('Naya Putri'), findsOneWidget);
-    expect(find.text('Bima Kurniawan'), findsOneWidget);
-    expect(find.text('Sasha Wijaya'), findsWidgets);
+    expect(find.textContaining('(#1)'), findsOneWidget);
 
     final images = tester.widgetList<Image>(find.byType(Image));
-    final assetPaths = images
+    final networkUrls = images
         .map((image) => image.image)
-        .whereType<AssetImage>()
-        .map((image) => image.assetName)
+        .whereType<NetworkImage>()
+        .map((image) => image.url)
         .toSet();
 
-    expect(assetPaths, contains('Assets/Images/post_gym.jpg'));
-    expect(assetPaths, contains('Assets/Images/post_filmmaking_1.jpg'));
-    expect(assetPaths, contains('Assets/Images/post_filmmaking_2.jpg'));
-    expect(assetPaths, contains('Assets/Images/post_indie_game.png'));
-    expect(assetPaths, contains('Assets/Images/post_hiking.jpg'));
-    expect(assetPaths, contains('Assets/Images/post_running.jpg'));
+    expect(
+      networkUrls,
+      contains('https://picsum.photos/seed/post0/600/400'),
+    );
+
+    // Gulir sampai ke bagian bawah untuk memicu infinite scroll (+5 post baru)
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(
+      find.textContaining('(#10)'),
+      500,
+      scrollable: scrollable,
+    );
+    await tester.pump();
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 450));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.textContaining('(#15)'),
+      500,
+      scrollable: scrollable,
+    );
+    expect(find.textContaining('(#15)'), findsOneWidget);
   });
 
   testWidgets('Tapping a Home author opens that user profile', (tester) async {
@@ -55,6 +75,9 @@ void main() {
 
   testWidgets('Quest page shows core sections', (tester) async {
     await tester.pumpWidget(const YourDoApp(startAuthenticated: true));
+
+    await tester.tap(find.text('Quests'));
+    await tester.pumpAndSettle();
 
     expect(find.text('Browse categories'), findsOneWidget);
     expect(find.text('Recommended for you'), findsOneWidget);
@@ -219,9 +242,14 @@ void main() {
     await tester.tap(find.text('LOGIN'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 1400));
+    await tester.pump();
+
+    // Saat baru masuk ke Home page, skeleton loading tampil selama ~400 ms
+    expect(find.byType(PostSkeletonList), findsOneWidget);
+
     await tester.pumpAndSettle();
 
-    expect(find.text('Browse categories'), findsOneWidget);
+    expect(find.text('Rizky Pratama'), findsWidgets);
   });
 
   testWidgets('Sign up page is reachable from login', (tester) async {
@@ -257,7 +285,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1400));
     await tester.pumpAndSettle();
 
-    expect(find.text('Browse categories'), findsOneWidget);
+    expect(find.text('Rizky Pratama'), findsWidgets);
 
     await tester.tap(find.text('Profile'));
     await tester.pumpAndSettle();
@@ -280,15 +308,17 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1400));
     await tester.pumpAndSettle();
 
-    expect(find.text('Browse categories'), findsOneWidget);
+    expect(find.text('Rizky Pratama'), findsWidgets);
   });
 
-  testWidgets('Editing profile updates display name across profile and posts', (
+  testWidgets('Editing profile updates display name and bio across profile and posts', (
     tester,
   ) async {
     await tester.pumpWidget(const YourDoApp(startAuthenticated: true));
 
     await tester.tap(find.text('Profile'));
+    await tester.pump();
+    expect(find.byType(PostSkeletonList), findsOneWidget);
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.edit_rounded));
@@ -296,17 +326,17 @@ void main() {
 
     expect(find.text('Edit Profile'), findsOneWidget);
 
-    await tester.enterText(
-      find.descendant(
-        of: find.byType(Dialog),
-        matching: find.byType(TextField),
-      ),
-      'Ivander Putra',
+    final dialogFields = find.descendant(
+      of: find.byType(Dialog),
+      matching: find.byType(TextField),
     );
+    await tester.enterText(dialogFields.first, 'Ivander Putra');
+    await tester.enterText(dialogFields.last, 'Bio baru Ivander');
     await tester.tap(find.text('Simpan'));
     await tester.pumpAndSettle();
 
     expect(find.text('Ivander Putra'), findsWidgets);
+    expect(find.text('Bio baru Ivander'), findsOneWidget);
     expect(find.text('Profil berhasil diperbarui'), findsOneWidget);
   });
 

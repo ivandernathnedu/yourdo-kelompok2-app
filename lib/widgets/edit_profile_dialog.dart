@@ -41,6 +41,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
   late final AuthService _authService;
   late final PostService _postService;
   late final TextEditingController _nameController;
+  late final TextEditingController _bioController;
   final _imagePicker = ImagePicker();
 
   String? _photoUrl;
@@ -54,12 +55,14 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
     _postService = widget.postService ?? PostService();
     final currentProfile = _authService.currentProfile;
     _nameController = TextEditingController(text: currentProfile.displayName);
+    _bioController = TextEditingController(text: currentProfile.bio);
     _photoUrl = currentProfile.photoUrl;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _bioController.dispose();
     super.dispose();
   }
 
@@ -91,6 +94,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
     if (_isSaving) return;
 
     final trimmedName = _nameController.text.trim();
+    final trimmedBio = _bioController.text.trim();
     if (trimmedName.isEmpty) {
       setState(() => _nameError = 'Nama akun tidak boleh kosong');
       return;
@@ -104,6 +108,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
     final messenger = ScaffoldMessenger.of(context);
     await _authService.updateProfile(
       displayName: trimmedName,
+      bio: trimmedBio,
       photoUrl: _photoUrl,
     );
     await _postService.updateCurrentUserPostsProfile(
@@ -226,6 +231,42 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                   color: AppColors.textSecondary.withValues(alpha: 0.6),
                 ),
                 errorText: _nameError,
+                filled: true,
+                fillColor: AppColors.background,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.divider),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.divider),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.questButton),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Bio',
+              style: AppTextStyles.postName.copyWith(fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _bioController,
+              enabled: !_isSaving,
+              maxLines: 3,
+              style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'Tulis bio singkat...',
+                hintStyle: TextStyle(
+                  color: AppColors.textSecondary.withValues(alpha: 0.6),
+                ),
                 filled: true,
                 fillColor: AppColors.background,
                 border: OutlineInputBorder(

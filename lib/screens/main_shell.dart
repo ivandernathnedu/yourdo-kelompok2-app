@@ -16,18 +16,39 @@ class MainShell extends StatefulWidget {
     required this.repository,
     required this.randomizer,
     this.authService,
+    this.initialIndex = 0,
   });
 
   final QuestRepository repository;
   final QuestRandomizer randomizer;
   final AuthService? authService;
+  final int initialIndex;
 
   @override
   State<MainShell> createState() => _MainShellState();
 }
 
 class _MainShellState extends State<MainShell> {
-  int _index = 1;
+  late int _index;
+  int _homeLoadTrigger = 0;
+  int _profileLoadTrigger = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _index = widget.initialIndex;
+  }
+
+  void _onSelectTab(int index) {
+    setState(() {
+      _index = index;
+      if (index == 0) {
+        _homeLoadTrigger++;
+      } else if (index == 2) {
+        _profileLoadTrigger++;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +58,7 @@ class _MainShellState extends State<MainShell> {
       body: IndexedStack(
         index: _index,
         children: [
-          const HomePage(),
+          HomePage(loadTrigger: _homeLoadTrigger),
           QuestPage(
             repository: widget.repository,
             randomizer: widget.randomizer,
@@ -46,12 +67,13 @@ class _MainShellState extends State<MainShell> {
             repository: widget.repository,
             randomizer: widget.randomizer,
             authService: widget.authService,
+            loadTrigger: _profileLoadTrigger,
           ),
         ],
       ),
       bottomNavigationBar: AppBottomNav(
         currentIndex: _index,
-        onSelect: (index) => setState(() => _index = index),
+        onSelect: _onSelectTab,
         onAddTap: () => CreatePostDialog.show(context),
       ),
     );

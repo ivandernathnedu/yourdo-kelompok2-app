@@ -4,6 +4,7 @@ class LocalUser {
     required this.password,
     required this.createdAtIso,
     this.displayName,
+    this.bio,
     this.photoUrl,
   });
 
@@ -11,6 +12,7 @@ class LocalUser {
   final String password;
   final String createdAtIso;
   final String? displayName;
+  final String? bio;
   final String? photoUrl;
 
   String get normalizedKey => username.trim().toLowerCase();
@@ -20,6 +22,7 @@ class LocalUser {
     String? password,
     String? createdAtIso,
     String? displayName,
+    String? bio,
     String? photoUrl,
   }) {
     return LocalUser(
@@ -27,6 +30,7 @@ class LocalUser {
       password: password ?? this.password,
       createdAtIso: createdAtIso ?? this.createdAtIso,
       displayName: displayName ?? this.displayName,
+      bio: bio ?? this.bio,
       photoUrl: photoUrl ?? this.photoUrl,
     );
   }
@@ -37,6 +41,7 @@ class LocalUser {
       'password': password,
       'createdAtIso': createdAtIso,
       if (displayName != null) 'displayName': displayName,
+      if (bio != null) 'bio': bio,
       if (photoUrl != null) 'photoUrl': photoUrl,
     };
   }
@@ -47,6 +52,7 @@ class LocalUser {
       password: map['password'] as String? ?? '',
       createdAtIso: map['createdAtIso'] as String? ?? '',
       displayName: map['displayName'] as String?,
+      bio: map['bio'] as String?,
       photoUrl: map['photoUrl'] as String?,
     );
   }

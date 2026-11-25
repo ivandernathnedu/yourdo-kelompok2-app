@@ -44,12 +44,14 @@ class AuthService {
 
   static LocalUser? _currentUser;
   static String? _customDisplayName;
+  static String? _customBio;
   static String? _customPhotoUrl;
   static bool _initialized = false;
 
   final Map<String, LocalUser> _users;
 
   static String? get customDisplayName => _customDisplayName;
+  static String? get customBio => _customBio;
 
   LocalUser? get currentUser => _currentUser;
 
@@ -79,6 +81,13 @@ class AuthService {
                 ? userDisplayName.trim()
                 : MockProfileData.user.displayName;
 
+    final userBio = _currentUser?.bio;
+    final resolvedBio = (_customBio != null && _customBio!.trim().isNotEmpty)
+        ? _customBio!.trim()
+        : (userBio != null && userBio.trim().isNotEmpty)
+            ? userBio.trim()
+            : MockProfileData.user.bio;
+
     final resolvedPhotoUrl =
         _customPhotoUrl ?? _currentUser?.photoUrl ?? MockProfileData.user.photoUrl;
 
@@ -91,7 +100,7 @@ class AuthService {
       id: MockProfileData.user.id,
       displayName: resolvedDisplayName,
       username: resolvedUsername,
-      bio: MockProfileData.user.bio,
+      bio: resolvedBio,
       followers: MockProfileData.user.followers,
       following: MockProfileData.user.following,
       questsTaken: MockProfileData.user.questsTaken,
@@ -143,6 +152,10 @@ class AuthService {
       if (savedCustomName != null && savedCustomName.trim().isNotEmpty) {
         _customDisplayName = savedCustomName.trim();
       }
+      final savedCustomBio = decoded['customBio'] as String?;
+      if (savedCustomBio != null && savedCustomBio.trim().isNotEmpty) {
+        _customBio = savedCustomBio.trim();
+      }
       final savedCustomPhoto = decoded['customPhotoUrl'] as String?;
       if (savedCustomPhoto != null && savedCustomPhoto.trim().isNotEmpty) {
         _customPhotoUrl = savedCustomPhoto;
@@ -189,6 +202,7 @@ class AuthService {
         'users': _persistedUsers.values.map((u) => u.toMap()).toList(),
         'currentUsername': _currentUser?.username,
         'customDisplayName': _customDisplayName,
+        'customBio': _customBio,
         'customPhotoUrl': _customPhotoUrl,
       };
       file.writeAsStringSync(jsonEncode(payload));
@@ -212,6 +226,7 @@ class AuthService {
 
     _currentUser = stored;
     _customDisplayName = stored.displayName;
+    _customBio = stored.bio;
     _customPhotoUrl = stored.photoUrl;
     _syncProfileNotifier();
     await _saveToDisk();
@@ -246,10 +261,14 @@ class AuthService {
 
   Future<void> updateProfile({
     required String displayName,
+    String? bio,
     String? photoUrl,
   }) async {
     _ensureInitialized();
     _customDisplayName = displayName.trim();
+    if (bio != null && bio.trim().isNotEmpty) {
+      _customBio = bio.trim();
+    }
     if (photoUrl != null) {
       _customPhotoUrl = photoUrl;
     }
@@ -257,6 +276,7 @@ class AuthService {
     if (_currentUser != null) {
       _currentUser = _currentUser!.copyWith(
         displayName: _customDisplayName,
+        bio: _customBio,
         photoUrl: _customPhotoUrl,
       );
       _persistedUsers[_currentUser!.normalizedKey] = _currentUser!;
@@ -270,6 +290,7 @@ class AuthService {
     _ensureInitialized();
     _currentUser = null;
     _customDisplayName = null;
+    _customBio = null;
     _customPhotoUrl = null;
     _syncProfileNotifier();
     await _saveToDisk();

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../data/mock_profile_data.dart';
@@ -16,6 +18,7 @@ import '../widgets/achievement_section.dart';
 import '../widgets/edit_profile_dialog.dart';
 import '../widgets/journey_list.dart';
 import '../widgets/post_list.dart';
+import '../widgets/post_skeleton.dart';
 import '../widgets/profile_description.dart';
 import '../widgets/profile_header.dart';
 import '../widgets/profile_tab_bar.dart';
@@ -29,11 +32,15 @@ class ProfilePage extends StatefulWidget {
     this.repository,
     this.randomizer,
     this.authService,
+    this.loadTrigger = 0,
   });
 
   final QuestRepository? repository;
   final QuestRandomizer? randomizer;
   final AuthService? authService;
+  final int loadTrigger;
+
+  static const Duration skeletonDuration = Duration(milliseconds: 400);
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -44,6 +51,8 @@ class _ProfilePageState extends State<ProfilePage> {
   late List<ProfileQuestEntry> _quests;
   late List<ProfileJourney> _journeys;
   late final PostService _postService;
+  Timer? _postsLoadingTimer;
+  bool _isPostsLoading = true;
 
   @override
   void initState() {
@@ -51,6 +60,30 @@ class _ProfilePageState extends State<ProfilePage> {
     _quests = List<ProfileQuestEntry>.from(MockProfileData.quests);
     _journeys = List<ProfileJourney>.from(MockProfileData.journeys);
     _postService = PostService();
+    _startPostsSkeletonTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant ProfilePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.loadTrigger != widget.loadTrigger) {
+      _startPostsSkeletonTimer();
+    }
+  }
+
+  void _startPostsSkeletonTimer() {
+    _postsLoadingTimer?.cancel();
+    _isPostsLoading = true;
+    _postsLoadingTimer = Timer(ProfilePage.skeletonDuration, () {
+      if (!mounted) return;
+      setState(() => _isPostsLoading = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _postsLoadingTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _logout() async {
@@ -151,7 +184,14 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   ProfileTabBar(
                     activeTab: _activeTab,
-                    onChanged: (tab) => setState(() => _activeTab = tab),
+                    onChanged: (tab) {
+                      setState(() {
+                        _activeTab = tab;
+                        if (tab == ProfileContentTab.posts) {
+                          _startPostsSkeletonTimer();
+                        }
+                      });
+                    },
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(
@@ -174,6 +214,9 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _tabContent(UserProfile profile) {
     switch (_activeTab) {
       case ProfileContentTab.posts:
+        if (_isPostsLoading) {
+          return const PostSkeletonList();
+        }
         final mockPosts = MockProfileData.posts
             .map((post) => _withUpdatedAuthor(post, profile))
             .toList();
