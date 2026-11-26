@@ -1,15 +1,17 @@
 class LocalUser {
   const LocalUser({
+    required this.id,
     required this.username,
-    required this.password,
+    required this.passwordHash,
     required this.createdAtIso,
     this.displayName,
     this.bio,
     this.photoUrl,
   });
 
+  final String id;
   final String username;
-  final String password;
+  final String passwordHash;
   final String createdAtIso;
   final String? displayName;
   final String? bio;
@@ -18,16 +20,18 @@ class LocalUser {
   String get normalizedKey => username.trim().toLowerCase();
 
   LocalUser copyWith({
+    String? id,
     String? username,
-    String? password,
+    String? passwordHash,
     String? createdAtIso,
     String? displayName,
     String? bio,
     String? photoUrl,
   }) {
     return LocalUser(
+      id: id ?? this.id,
       username: username ?? this.username,
-      password: password ?? this.password,
+      passwordHash: passwordHash ?? this.passwordHash,
       createdAtIso: createdAtIso ?? this.createdAtIso,
       displayName: displayName ?? this.displayName,
       bio: bio ?? this.bio,
@@ -37,8 +41,9 @@ class LocalUser {
 
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
       'username': username,
-      'password': password,
+      'passwordHash': passwordHash,
       'createdAtIso': createdAtIso,
       if (displayName != null) 'displayName': displayName,
       if (bio != null) 'bio': bio,
@@ -48,8 +53,10 @@ class LocalUser {
 
   factory LocalUser.fromMap(Map<String, dynamic> map) {
     return LocalUser(
+      id: map['id'] as String? ?? '',
       username: map['username'] as String? ?? '',
-      password: map['password'] as String? ?? '',
+      passwordHash:
+          (map['passwordHash'] ?? map['password']) as String? ?? '',
       createdAtIso: map['createdAtIso'] as String? ?? '',
       displayName: map['displayName'] as String?,
       bio: map['bio'] as String?,
