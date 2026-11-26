@@ -85,9 +85,17 @@ class PostService {
     }
 
     // Simpan data post ke Cloud Firestore
+    final currentUser = AuthService().currentUser;
     final currentProfile = AuthService.profileNotifier.value;
+    final userId = (currentUser != null && currentUser.id.isNotEmpty)
+        ? currentUser.id
+        : currentProfile.id;
+    if (userId.isEmpty) {
+      throw StateError('User harus login sebelum membuat post.');
+    }
+
     final docRef = await _postsRef.add({
-      'userId': 'current_user',
+      'userId': userId,
       'displayName': currentProfile.displayName,
       'username': currentProfile.username,
       'photoUrl': currentProfile.photoUrl,
@@ -114,28 +122,33 @@ class PostService {
           .orderBy('createdAt', descending: true)
           .snapshots()
           .map((snapshot) {
-        return snapshot.docs.map((doc) {
+        final currentUser = AuthService().currentUser;
+        final currentProfile = AuthService.profileNotifier.value;
+        final currentUserId = (currentUser != null && currentUser.id.isNotEmpty)
+            ? currentUser.id
+            : currentProfile.id;
+
+        if (currentUserId.isEmpty) {
+          return const <ProfilePost>[];
+        }
+
+        return snapshot.docs.where((doc) {
+          final rawUserId = doc.data()['userId'] as String? ?? '';
+          return rawUserId == currentUserId;
+        }).map((doc) {
           final data = doc.data();
           final label = data['categoryLabel'] as String? ?? 'Explorer';
           final rawUserId = data['userId'] as String? ?? '';
-          final isCurrentUser =
-              rawUserId == 'current_user' || rawUserId == 'me';
-          final currentProfile = AuthService.profileNotifier.value;
 
           return ProfilePost(
             id: doc.id,
             userId: rawUserId,
-            displayName:
-                isCurrentUser && AuthService.customDisplayName != null
-                    ? currentProfile.displayName
-                    : (data['displayName'] as String? ??
-                        currentProfile.displayName),
-            username: isCurrentUser
-                ? currentProfile.username
-                : (data['username'] as String? ?? '@user'),
-            photoUrl: isCurrentUser
-                ? (currentProfile.photoUrl ?? data['photoUrl'] as String?)
-                : (data['photoUrl'] as String?),
+            displayName: AuthService.customDisplayName != null
+                ? currentProfile.displayName
+                : (data['displayName'] as String? ??
+                    currentProfile.displayName),
+            username: currentProfile.username,
+            photoUrl: currentProfile.photoUrl ?? data['photoUrl'] as String?,
             categoryLabel: label,
             categoryColor: Color(data['categoryColor'] as int? ?? 0xFF1F5EFF),
             categoryIcon: _getCategoryIcon(label),
@@ -185,12 +198,19 @@ class PostService {
     String? photoUrl,
   }) async {
     try {
+      final currentUser = AuthService().currentUser;
+      final currentProfile = AuthService.profileNotifier.value;
+      final userId = (currentUser != null && currentUser.id.isNotEmpty)
+          ? currentUser.id
+          : currentProfile.id;
+      if (userId.isEmpty) return;
+
       final snapshot =
-          await _postsRef.where('userId', isEqualTo: 'current_user').get();
+          await _postsRef.where('userId', isEqualTo: userId).get();
       for (final doc in snapshot.docs) {
         final Map<String, dynamic> updates = {
           'displayName': displayName,
-          'username': AuthService.profileNotifier.value.username,
+          'username': currentProfile.username,
         };
         if (photoUrl != null) {
           updates['photoUrl'] = photoUrl;

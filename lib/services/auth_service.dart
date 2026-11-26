@@ -80,41 +80,50 @@ class AuthService {
   }
 
   static void _syncProfileNotifier() {
-    final userDisplayName = _currentUser?.displayName;
+    final current = _currentUser;
+    if (current == null) {
+      profileNotifier.value = const UserProfile(
+        id: '',
+        displayName: '',
+        username: '',
+        bio: '',
+        followers: 0,
+        following: 0,
+        questsTaken: 0,
+        photoUrl: null,
+      );
+      return;
+    }
+
+    final userDisplayName = current.displayName;
     final resolvedDisplayName =
         (_customDisplayName != null && _customDisplayName!.trim().isNotEmpty)
             ? _customDisplayName!.trim()
             : (userDisplayName != null && userDisplayName.trim().isNotEmpty)
                 ? userDisplayName.trim()
-                : MockProfileData.user.displayName;
+                : current.username.split('@').first;
 
-    final userBio = _currentUser?.bio;
+    final userBio = current.bio;
     final resolvedBio = (_customBio != null && _customBio!.trim().isNotEmpty)
         ? _customBio!.trim()
         : (userBio != null && userBio.trim().isNotEmpty)
             ? userBio.trim()
-            : MockProfileData.user.bio;
+            : '';
 
-    final resolvedPhotoUrl =
-        _customPhotoUrl ?? _currentUser?.photoUrl ?? MockProfileData.user.photoUrl;
+    final resolvedPhotoUrl = _customPhotoUrl ?? current.photoUrl;
 
-    final resolvedUsername =
-        (_currentUser != null && _currentUser!.username.trim().isNotEmpty)
-            ? formatUsernameFromEmail(_currentUser!.username)
-            : MockProfileData.user.username;
-
-    final resolvedId = (_currentUser != null && _currentUser!.id.isNotEmpty)
-        ? _currentUser!.id
-        : MockProfileData.user.id;
+    final resolvedUsername = current.username.trim().isNotEmpty
+        ? formatUsernameFromEmail(current.username)
+        : '';
 
     profileNotifier.value = UserProfile(
-      id: resolvedId,
+      id: current.id,
       displayName: resolvedDisplayName,
       username: resolvedUsername,
       bio: resolvedBio,
-      followers: MockProfileData.user.followers,
-      following: MockProfileData.user.following,
-      questsTaken: MockProfileData.user.questsTaken,
+      followers: 0,
+      following: 0,
+      questsTaken: 0,
       photoUrl: resolvedPhotoUrl,
     );
   }
@@ -283,6 +292,9 @@ class AuthService {
     _users[key] = newUser;
     _persistedUsers[key] = newUser;
     _currentUser = newUser;
+    _customDisplayName = null;
+    _customBio = null;
+    _customPhotoUrl = null;
     _syncProfileNotifier();
     await _saveToDisk();
     return const AuthResult.ok();
